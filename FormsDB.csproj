@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<!-- Обязательно -windows для WinForms -->
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+
+		<!-- AssemblyInfo properties -->
+		<AssemblyTitle>Warehouse Management System</AssemblyTitle>
+		<Description>Система управления складом и логистикой</Description>
+		<Company>Ваша компания</Company>
+		<Product>Warehouse Management System</Product>
+		<Copyright>Copyright © 2024 Ваша компания</Copyright>
+
+		<!-- Версии -->
+		<Version>1.0.0</Version>
+		<FileVersion>1.0.0.0</FileVersion>
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- PostgreSQL драйвер -->
+		<PackageReference Include="Npgsql" Version="10.0.0" />
+
+		<!-- Micro-ORM для работы с БД -->
+		<PackageReference Include="Dapper" Version="2.1.0" />
+
+		<!-- Дополнительно для Npgsql 10.x -->
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+
+		<!-- Для работы с конфигурацией -->
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.0" />
+	</ItemGroup>
+
+</Project>

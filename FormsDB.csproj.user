@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Compile Update="Database\Tables\AcceptanceCertificates\AcceptanceCertificateForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\Tables\Customers\CustomersForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\Tables\Invoices\InvoiceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\Tables\Products\ProductsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\Tables\Shipments\ShipmentForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\Tables\StorageLocations\StorageLocationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\Tables\Suppliers\SuppliersForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\Tables\Supplies\SupplyForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\DialogForms\CustomerDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\DialogForms\GenericDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\DialogForms\ProductDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\DialogForms\SupplierDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\ReportsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SubForms\AcceptanceCertificateSubForm.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Forms\SubForms\InvoiceSubForm.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+  </ItemGroup>
+</Project>
