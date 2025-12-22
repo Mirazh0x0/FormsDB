@@ -14,8 +14,18 @@ namespace FormsDB.Tables.Products
 
             using (var connection = DatabaseContext.GetConnection())
             {
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
                 var query = @"
-                    SELECT p.*, sl.Name as LocationName 
+                    SELECT 
+                        p.ProductID,
+                        p.Name,
+                        p.Description,
+                        p.Category,
+                        p.UnitPrice,
+                        p.QuantityInStock,
+                        p.LocationID,
+                        p.CreatedDate::timestamp as CreatedDate,  -- Преобразуем DATE в TIMESTAMP
+                        sl.Name as LocationName 
                     FROM Products p
                     LEFT JOIN StorageLocations sl ON p.LocationID = sl.LocationID
                     ORDER BY p.ProductID";
@@ -37,8 +47,18 @@ namespace FormsDB.Tables.Products
         {
             using (var connection = DatabaseContext.GetConnection())
             {
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
                 var query = @"
-                    SELECT p.*, sl.Name as LocationName 
+                    SELECT 
+                        p.ProductID,
+                        p.Name,
+                        p.Description,
+                        p.Category,
+                        p.UnitPrice,
+                        p.QuantityInStock,
+                        p.LocationID,
+                        p.CreatedDate::timestamp as CreatedDate,  -- Преобразуем DATE в TIMESTAMP
+                        sl.Name as LocationName 
                     FROM Products p
                     LEFT JOIN StorageLocations sl ON p.LocationID = sl.LocationID
                     WHERE p.ProductID = @ProductID";
@@ -132,8 +152,18 @@ namespace FormsDB.Tables.Products
 
             using (var connection = DatabaseContext.GetConnection())
             {
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
                 var query = @"
-                    SELECT p.*, sl.Name as LocationName 
+                    SELECT 
+                        p.ProductID,
+                        p.Name,
+                        p.Description,
+                        p.Category,
+                        p.UnitPrice,
+                        p.QuantityInStock,
+                        p.LocationID,
+                        p.CreatedDate::timestamp as CreatedDate,  -- Преобразуем DATE в TIMESTAMP
+                        sl.Name as LocationName 
                     FROM Products p
                     LEFT JOIN StorageLocations sl ON p.LocationID = sl.LocationID
                     WHERE p.Name ILIKE @SearchTerm 
@@ -169,9 +199,166 @@ namespace FormsDB.Tables.Products
                 UnitPrice = Convert.ToDecimal(reader["UnitPrice"]),
                 QuantityInStock = Convert.ToInt32(reader["QuantityInStock"]),
                 LocationID = reader["LocationID"] != DBNull.Value ? Convert.ToInt32(reader["LocationID"]) : (int?)null,
-                CreatedDate = Convert.ToDateTime(reader["CreatedDate"]),
+
+                // Теперь это будет DateTime благодаря ::timestamp
+                CreatedDate = reader["CreatedDate"] != DBNull.Value ?
+                    Convert.ToDateTime(reader["CreatedDate"]) : DateTime.MinValue,
+
                 LocationName = reader["LocationName"] != DBNull.Value ? reader["LocationName"].ToString() : null
             };
+        }
+
+        // Дополнительные полезные методы:
+
+        public List<Product> GetProductsByCategory(string category)
+        {
+            var products = new List<Product>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT 
+                        p.ProductID,
+                        p.Name,
+                        p.Description,
+                        p.Category,
+                        p.UnitPrice,
+                        p.QuantityInStock,
+                        p.LocationID,
+                        p.CreatedDate::timestamp as CreatedDate,
+                        sl.Name as LocationName 
+                    FROM Products p
+                    LEFT JOIN StorageLocations sl ON p.LocationID = sl.LocationID
+                    WHERE p.Category = @Category
+                    ORDER BY p.Name";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Category", category);
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            products.Add(MapProductFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return products;
+        }
+
+        public List<Product> GetProductsByLocation(int locationId)
+        {
+            var products = new List<Product>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT 
+                        p.ProductID,
+                        p.Name,
+                        p.Description,
+                        p.Category,
+                        p.UnitPrice,
+                        p.QuantityInStock,
+                        p.LocationID,
+                        p.CreatedDate::timestamp as CreatedDate,
+                        sl.Name as LocationName 
+                    FROM Products p
+                    LEFT JOIN StorageLocations sl ON p.LocationID = sl.LocationID
+                    WHERE p.LocationID = @LocationID
+                    ORDER BY p.Name";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@LocationID", locationId);
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            products.Add(MapProductFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return products;
+        }
+
+        public List<Product> GetLowStockProducts(int threshold = 10)
+        {
+            var products = new List<Product>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT 
+                        p.ProductID,
+                        p.Name,
+                        p.Description,
+                        p.Category,
+                        p.UnitPrice,
+                        p.QuantityInStock,
+                        p.LocationID,
+                        p.CreatedDate::timestamp as CreatedDate,
+                        sl.Name as LocationName 
+                    FROM Products p
+                    LEFT JOIN StorageLocations sl ON p.LocationID = sl.LocationID
+                    WHERE p.QuantityInStock <= @Threshold
+                    ORDER BY p.QuantityInStock";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Threshold", threshold);
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            products.Add(MapProductFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return products;
+        }
+
+        public bool UpdateProductStock(int productId, int quantityChange)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    UPDATE Products 
+                    SET QuantityInStock = QuantityInStock + @QuantityChange
+                    WHERE ProductID = @ProductID
+                    AND QuantityInStock + @QuantityChange >= 0";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ProductID", productId);
+                    command.Parameters.AddWithValue("@QuantityChange", quantityChange);
+
+                    return command.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+        public decimal GetTotalInventoryValue()
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = "SELECT COALESCE(SUM(UnitPrice * QuantityInStock), 0) FROM Products";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    var result = command.ExecuteScalar();
+                    return Convert.ToDecimal(result ?? 0);
+                }
+            }
         }
     }
 }

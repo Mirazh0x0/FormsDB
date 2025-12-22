@@ -147,7 +147,7 @@ namespace FormsDB.Database.Scripts
                     TotalAmount DECIMAL(10,2),
                     InvoiceDate DATE DEFAULT CURRENT_DATE,
                     DueDate DATE,
-                    Status VARCHAR(20) DEFAULT 'Pending',
+                    Status VARCHAR(20) DEFAULT 'Ожидает оплаты'
                     CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )";
             await ExecuteSqlCommandAsync(connection, sql);

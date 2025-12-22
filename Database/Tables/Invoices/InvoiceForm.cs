@@ -15,6 +15,15 @@ namespace FormsDB.Tables.Invoices
         private List<Invoice> _invoices;
         private List<Customer> _customers;
 
+        // Константы для статусов
+        private readonly List<string> _statuses = new List<string>
+        {
+            "Ожидает оплаты",
+            "Оплачен",
+            "Просрочен",
+            "Отменен"
+        };
+
         public InvoiceForm()
         {
             InitializeComponent();
@@ -61,8 +70,10 @@ namespace FormsDB.Tables.Invoices
             var btnFilter = new Button { Text = "Применить", Location = new Point(440, 50), Size = new Size(100, 25) };
             var btnClearFilter = new Button { Text = "Сбросить", Location = new Point(550, 50), Size = new Size(100, 25) };
 
+            // Заполняем фильтры
             cmbCustomerFilter.Items.Add("Все клиенты");
-            cmbStatusFilter.Items.AddRange(new string[] { "Все статусы", "Pending", "Paid", "Cancelled" });
+            cmbStatusFilter.Items.Add("Все статусы");
+            cmbStatusFilter.Items.AddRange(_statuses.ToArray());
 
             btnAdd.Click += BtnAdd_Click;
             btnEdit.Click += BtnEdit_Click;
@@ -106,6 +117,37 @@ namespace FormsDB.Tables.Invoices
                 dataGridView.Columns["InvoiceDate"].DefaultCellStyle.Format = "dd.MM.yyyy";
                 dataGridView.Columns["DueDate"].DefaultCellStyle.Format = "dd.MM.yyyy";
                 dataGridView.Columns["CreatedDate"].DefaultCellStyle.Format = "dd.MM.yyyy HH:mm";
+
+                // Цвет строк по статусу
+                dataGridView.CellFormatting += DataGridView_CellFormatting;
+            }
+        }
+
+        private void DataGridView_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dataGridView.Columns["Status"] != null && e.ColumnIndex == dataGridView.Columns["Status"].Index)
+            {
+                if (e.Value != null)
+                {
+                    string status = e.Value.ToString();
+                    switch (status)
+                    {
+                        case "Оплачен":
+                            e.CellStyle.BackColor = Color.LightGreen;
+                            break;
+                        case "Просрочен":
+                            e.CellStyle.BackColor = Color.LightCoral;
+                            e.CellStyle.ForeColor = Color.DarkRed;
+                            break;
+                        case "Ожидает оплаты":
+                            e.CellStyle.BackColor = Color.LightYellow;
+                            break;
+                        case "Отменен":
+                            e.CellStyle.BackColor = Color.LightGray;
+                            e.CellStyle.ForeColor = Color.Gray;
+                            break;
+                    }
+                }
             }
         }
 
@@ -141,8 +183,7 @@ namespace FormsDB.Tables.Invoices
                 dialog.AddNumericBox("Сумма:", "TotalAmount", true);
                 dialog.AddDatePicker("Дата выставления:", "InvoiceDate", true, DateTime.Now);
                 dialog.AddDatePicker("Срок оплаты:", "DueDate", false, DateTime.Now.AddDays(30));
-                dialog.AddComboBox("Статус:", "Status",
-                    new List<string> { "Pending", "Paid", "Cancelled" }, true, "Pending");
+                dialog.AddComboBox("Статус:", "Status", _statuses, true, "Ожидает оплаты");
 
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -181,8 +222,7 @@ namespace FormsDB.Tables.Invoices
                         dialog.AddNumericBox("Сумма:", "TotalAmount", true, (int)selectedInvoice.TotalAmount);
                         dialog.AddDatePicker("Дата выставления:", "InvoiceDate", true, selectedInvoice.InvoiceDate);
                         dialog.AddDatePicker("Срок оплаты:", "DueDate", false, selectedInvoice.DueDate);
-                        dialog.AddComboBox("Статус:", "Status",
-                            new List<string> { "Pending", "Paid", "Cancelled" }, true, selectedInvoice.Status);
+                        dialog.AddComboBox("Статус:", "Status", _statuses, true, selectedInvoice.Status);
 
                         if (dialog.ShowDialog() == DialogResult.OK)
                         {
@@ -241,7 +281,7 @@ namespace FormsDB.Tables.Invoices
                 var selectedInvoice = dataGridView.SelectedRows[0].DataBoundItem as Invoice;
                 if (selectedInvoice != null)
                 {
-                    _repository.UpdateInvoiceStatus(selectedInvoice.InvoiceID, "Paid");
+                    _repository.UpdateInvoiceStatus(selectedInvoice.InvoiceID, "Оплачен");
                     LoadInvoices();
                     MessageBox.Show("Счет отмечен как оплаченный.", "Информация",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);

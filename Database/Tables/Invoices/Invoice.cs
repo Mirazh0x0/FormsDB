@@ -9,7 +9,7 @@ namespace FormsDB.Tables.Invoices
         public decimal TotalAmount { get; set; }
         public DateTime InvoiceDate { get; set; }
         public DateTime? DueDate { get; set; }
-        public string Status { get; set; }
+        public string Status { get; set; } = "Ожидает оплаты"; // Значение по умолчанию
         public DateTime CreatedDate { get; set; }
 
         // Навигационные свойства

@@ -13,7 +13,16 @@ namespace FormsDB.Tables.StorageLocations
 
             using (var connection = DatabaseContext.GetConnection())
             {
-                var query = "SELECT * FROM StorageLocations ORDER BY LocationID";
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
+                var query = @"
+                    SELECT 
+                        LocationID,
+                        Name,
+                        Description,
+                        Capacity,
+                        CreatedDate::timestamp as CreatedDate  -- Преобразуем DATE в TIMESTAMP
+                    FROM StorageLocations 
+                    ORDER BY LocationID";
 
                 using (var command = new NpgsqlCommand(query, connection))
                 using (var reader = command.ExecuteReader())
@@ -32,7 +41,16 @@ namespace FormsDB.Tables.StorageLocations
         {
             using (var connection = DatabaseContext.GetConnection())
             {
-                var query = "SELECT * FROM StorageLocations WHERE LocationID = @LocationID";
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
+                var query = @"
+                    SELECT 
+                        LocationID,
+                        Name,
+                        Description,
+                        Capacity,
+                        CreatedDate::timestamp as CreatedDate  -- Преобразуем DATE в TIMESTAMP
+                    FROM StorageLocations 
+                    WHERE LocationID = @LocationID";
 
                 using (var command = new NpgsqlCommand(query, connection))
                 {
@@ -116,8 +134,84 @@ namespace FormsDB.Tables.StorageLocations
                 Name = reader["Name"].ToString(),
                 Description = reader["Description"] != DBNull.Value ? reader["Description"].ToString() : null,
                 Capacity = reader["Capacity"] != DBNull.Value ? Convert.ToInt32(reader["Capacity"]) : (int?)null,
-                CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
+
+                // Теперь это будет DateTime благодаря ::timestamp
+                CreatedDate = reader["CreatedDate"] != DBNull.Value ?
+                    Convert.ToDateTime(reader["CreatedDate"]) : DateTime.MinValue
             };
+        }
+
+        public int GetLocationUsage(int locationId)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+            SELECT COALESCE(SUM(QuantityInStock), 0) 
+            FROM Products 
+            WHERE LocationID = @LocationID";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@LocationID", locationId);
+                    var result = command.ExecuteScalar();
+                    return Convert.ToInt32(result ?? 0);
+                }
+            }
+        }
+
+        public bool IsLocationInUse(int locationId)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+            SELECT EXISTS (
+                SELECT 1 
+                FROM Products 
+                WHERE LocationID = @LocationID 
+                AND QuantityInStock > 0
+            )";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@LocationID", locationId);
+                    return Convert.ToBoolean(command.ExecuteScalar());
+                }
+            }
+        }
+
+        public List<StorageLocation> SearchLocations(string searchTerm)
+        {
+            var locations = new List<StorageLocation>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT 
+                        LocationID,
+                        Name,
+                        Description,
+                        Capacity,
+                        CreatedDate::timestamp as CreatedDate
+                    FROM StorageLocations 
+                    WHERE Name ILIKE @SearchTerm 
+                       OR Description ILIKE @SearchTerm
+                    ORDER BY LocationID";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@SearchTerm", $"%{searchTerm}%");
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            locations.Add(MapLocationFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return locations;
         }
     }
 }

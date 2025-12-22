@@ -13,8 +13,19 @@ namespace FormsDB.Tables.Supplies
 
             using (var connection = DatabaseContext.GetConnection())
             {
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
                 var query = @"
-                    SELECT s.*, sup.Name as SupplierName, p.Name as ProductName
+                    SELECT 
+                        s.SupplyID,
+                        s.SupplierID,
+                        s.ProductID,
+                        s.Quantity,
+                        s.UnitPrice,
+                        s.TotalPrice,
+                        s.SupplyDate::timestamp as SupplyDate,  -- Преобразуем DATE в TIMESTAMP
+                        s.CreatedDate::timestamp as CreatedDate, -- Преобразуем DATE в TIMESTAMP
+                        sup.Name as SupplierName, 
+                        p.Name as ProductName
                     FROM Supplies s
                     LEFT JOIN Suppliers sup ON s.SupplierID = sup.SupplierID
                     LEFT JOIN Products p ON s.ProductID = p.ProductID
@@ -37,8 +48,19 @@ namespace FormsDB.Tables.Supplies
         {
             using (var connection = DatabaseContext.GetConnection())
             {
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
                 var query = @"
-                    SELECT s.*, sup.Name as SupplierName, p.Name as ProductName
+                    SELECT 
+                        s.SupplyID,
+                        s.SupplierID,
+                        s.ProductID,
+                        s.Quantity,
+                        s.UnitPrice,
+                        s.TotalPrice,
+                        s.SupplyDate::timestamp as SupplyDate,  -- Преобразуем DATE в TIMESTAMP
+                        s.CreatedDate::timestamp as CreatedDate, -- Преобразуем DATE в TIMESTAMP
+                        sup.Name as SupplierName, 
+                        p.Name as ProductName
                     FROM Supplies s
                     LEFT JOIN Suppliers sup ON s.SupplierID = sup.SupplierID
                     LEFT JOIN Products p ON s.ProductID = p.ProductID
@@ -77,7 +99,10 @@ namespace FormsDB.Tables.Supplies
                     command.Parameters.AddWithValue("@Quantity", supply.Quantity);
                     command.Parameters.AddWithValue("@UnitPrice", supply.UnitPrice);
                     command.Parameters.AddWithValue("@TotalPrice", supply.TotalPrice);
-                    command.Parameters.AddWithValue("@SupplyDate", supply.SupplyDate);
+
+                    // Если SupplyDate содержит время, обрезаем до даты
+                    var supplyDate = supply.SupplyDate.Date;
+                    command.Parameters.AddWithValue("@SupplyDate", supplyDate);
 
                     return Convert.ToInt32(command.ExecuteScalar());
                 }
@@ -106,7 +131,10 @@ namespace FormsDB.Tables.Supplies
                     command.Parameters.AddWithValue("@Quantity", supply.Quantity);
                     command.Parameters.AddWithValue("@UnitPrice", supply.UnitPrice);
                     command.Parameters.AddWithValue("@TotalPrice", supply.TotalPrice);
-                    command.Parameters.AddWithValue("@SupplyDate", supply.SupplyDate);
+
+                    // Если SupplyDate содержит время, обрезаем до даты
+                    var supplyDate = supply.SupplyDate.Date;
+                    command.Parameters.AddWithValue("@SupplyDate", supplyDate);
 
                     return command.ExecuteNonQuery() > 0;
                 }
@@ -137,11 +165,154 @@ namespace FormsDB.Tables.Supplies
                 Quantity = Convert.ToInt32(reader["Quantity"]),
                 UnitPrice = Convert.ToDecimal(reader["UnitPrice"]),
                 TotalPrice = Convert.ToDecimal(reader["TotalPrice"]),
-                SupplyDate = Convert.ToDateTime(reader["SupplyDate"]),
-                CreatedDate = Convert.ToDateTime(reader["CreatedDate"]),
-                SupplierName = reader["SupplierName"] != DBNull.Value ? reader["SupplierName"].ToString() : "Неизвестно",
-                ProductName = reader["ProductName"] != DBNull.Value ? reader["ProductName"].ToString() : "Неизвестно"
+
+                // Теперь это будет DateTime благодаря ::timestamp
+                SupplyDate = reader["SupplyDate"] != DBNull.Value ?
+                    Convert.ToDateTime(reader["SupplyDate"]) : DateTime.MinValue,
+
+                // Теперь это будет DateTime благодаря ::timestamp
+                CreatedDate = reader["CreatedDate"] != DBNull.Value ?
+                    Convert.ToDateTime(reader["CreatedDate"]) : DateTime.MinValue,
+
+                SupplierName = reader["SupplierName"] != DBNull.Value ?
+                    reader["SupplierName"].ToString() : "Неизвестно",
+
+                ProductName = reader["ProductName"] != DBNull.Value ?
+                    reader["ProductName"].ToString() : "Неизвестно"
             };
+        }
+
+        // Дополнительные полезные методы:
+
+        public List<Supply> GetSuppliesBySupplierId(int supplierId)
+        {
+            var supplies = new List<Supply>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT 
+                        s.SupplyID,
+                        s.SupplierID,
+                        s.ProductID,
+                        s.Quantity,
+                        s.UnitPrice,
+                        s.TotalPrice,
+                        s.SupplyDate::timestamp as SupplyDate,
+                        s.CreatedDate::timestamp as CreatedDate,
+                        sup.Name as SupplierName, 
+                        p.Name as ProductName
+                    FROM Supplies s
+                    LEFT JOIN Suppliers sup ON s.SupplierID = sup.SupplierID
+                    LEFT JOIN Products p ON s.ProductID = p.ProductID
+                    WHERE s.SupplierID = @SupplierID
+                    ORDER BY s.SupplyDate DESC";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@SupplierID", supplierId);
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            supplies.Add(MapSupplyFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return supplies;
+        }
+
+        public List<Supply> GetSuppliesByProductId(int productId)
+        {
+            var supplies = new List<Supply>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT 
+                        s.SupplyID,
+                        s.SupplierID,
+                        s.ProductID,
+                        s.Quantity,
+                        s.UnitPrice,
+                        s.TotalPrice,
+                        s.SupplyDate::timestamp as SupplyDate,
+                        s.CreatedDate::timestamp as CreatedDate,
+                        sup.Name as SupplierName, 
+                        p.Name as ProductName
+                    FROM Supplies s
+                    LEFT JOIN Suppliers sup ON s.SupplierID = sup.SupplierID
+                    LEFT JOIN Products p ON s.ProductID = p.ProductID
+                    WHERE s.ProductID = @ProductID
+                    ORDER BY s.SupplyDate DESC";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ProductID", productId);
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            supplies.Add(MapSupplyFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return supplies;
+        }
+
+        public decimal GetTotalSuppliesValue(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = "SELECT COALESCE(SUM(TotalPrice), 0) FROM Supplies WHERE 1=1";
+
+                if (startDate.HasValue)
+                {
+                    query += " AND SupplyDate >= @StartDate";
+                }
+
+                if (endDate.HasValue)
+                {
+                    query += " AND SupplyDate <= @EndDate";
+                }
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    if (startDate.HasValue)
+                    {
+                        command.Parameters.AddWithValue("@StartDate", startDate.Value.Date);
+                    }
+
+                    if (endDate.HasValue)
+                    {
+                        command.Parameters.AddWithValue("@EndDate", endDate.Value.Date);
+                    }
+
+                    var result = command.ExecuteScalar();
+                    return Convert.ToDecimal(result ?? 0);
+                }
+            }
+        }
+
+        public int GetTotalSuppliedQuantity(int productId)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = "SELECT COALESCE(SUM(Quantity), 0) FROM Supplies WHERE ProductID = @ProductID";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ProductID", productId);
+                    var result = command.ExecuteScalar();
+                    return Convert.ToInt32(result ?? 0);
+                }
+            }
         }
     }
 }

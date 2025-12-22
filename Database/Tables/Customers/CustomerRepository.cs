@@ -13,7 +13,18 @@ namespace FormsDB.Tables.Customers
 
             using (var connection = DatabaseContext.GetConnection())
             {
-                var query = "SELECT * FROM Customers ORDER BY CustomerID";
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
+                var query = @"
+                    SELECT 
+                        CustomerID,
+                        Name,
+                        ContactPerson,
+                        Phone,
+                        Email,
+                        Address,
+                        CreatedDate::timestamp as CreatedDate  -- Преобразуем DATE в TIMESTAMP
+                    FROM Customers 
+                    ORDER BY CustomerID";
 
                 using (var command = new NpgsqlCommand(query, connection))
                 using (var reader = command.ExecuteReader())
@@ -32,7 +43,18 @@ namespace FormsDB.Tables.Customers
         {
             using (var connection = DatabaseContext.GetConnection())
             {
-                var query = "SELECT * FROM Customers WHERE CustomerID = @CustomerID";
+                // ДОБАВЛЯЕМ ::timestamp для преобразования DATE в TIMESTAMP
+                var query = @"
+                    SELECT 
+                        CustomerID,
+                        Name,
+                        ContactPerson,
+                        Phone,
+                        Email,
+                        Address,
+                        CreatedDate::timestamp as CreatedDate  -- Преобразуем DATE в TIMESTAMP
+                    FROM Customers 
+                    WHERE CustomerID = @CustomerID";
 
                 using (var command = new NpgsqlCommand(query, connection))
                 {
@@ -124,8 +146,196 @@ namespace FormsDB.Tables.Customers
                 Phone = reader["Phone"] != DBNull.Value ? reader["Phone"].ToString() : null,
                 Email = reader["Email"] != DBNull.Value ? reader["Email"].ToString() : null,
                 Address = reader["Address"] != DBNull.Value ? reader["Address"].ToString() : null,
-                CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
+
+                // Теперь это будет DateTime благодаря ::timestamp
+                CreatedDate = reader["CreatedDate"] != DBNull.Value ?
+                    Convert.ToDateTime(reader["CreatedDate"]) : DateTime.MinValue
             };
+        }
+
+        // Дополнительные полезные методы:
+
+        public List<Customer> SearchCustomers(string searchTerm)
+        {
+            var customers = new List<Customer>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT 
+                        CustomerID,
+                        Name,
+                        ContactPerson,
+                        Phone,
+                        Email,
+                        Address,
+                        CreatedDate::timestamp as CreatedDate
+                    FROM Customers 
+                    WHERE Name ILIKE @SearchTerm 
+                       OR ContactPerson ILIKE @SearchTerm 
+                       OR Email ILIKE @SearchTerm
+                       OR Phone ILIKE @SearchTerm
+                    ORDER BY Name";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@SearchTerm", $"%{searchTerm}%");
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            customers.Add(MapCustomerFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return customers;
+        }
+
+        public List<Customer> GetCustomersWithActiveInvoices()
+        {
+            var customers = new List<Customer>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                // Получаем клиентов с активными (неоплаченными) счетами
+                var query = @"
+                    SELECT DISTINCT
+                        c.CustomerID,
+                        c.Name,
+                        c.ContactPerson,
+                        c.Phone,
+                        c.Email,
+                        c.Address,
+                        c.CreatedDate::timestamp as CreatedDate
+                    FROM Customers c
+                    INNER JOIN Invoices i ON c.CustomerID = i.CustomerID
+                    WHERE i.Status != 'Paid'
+                    ORDER BY c.Name";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        customers.Add(MapCustomerFromReader(reader));
+                    }
+                }
+            }
+
+            return customers;
+        }
+
+        public List<Customer> GetCustomersByShipmentDate(DateTime startDate, DateTime endDate)
+        {
+            var customers = new List<Customer>();
+
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                // Получаем клиентов, у которых были отгрузки за указанный период
+                var query = @"
+                    SELECT DISTINCT
+                        c.CustomerID,
+                        c.Name,
+                        c.ContactPerson,
+                        c.Phone,
+                        c.Email,
+                        c.Address,
+                        c.CreatedDate::timestamp as CreatedDate
+                    FROM Customers c
+                    INNER JOIN Shipments s ON c.CustomerID = s.CustomerID
+                    WHERE s.ShipmentDate BETWEEN @StartDate AND @EndDate
+                    ORDER BY c.Name";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@StartDate", startDate.Date);
+                    command.Parameters.AddWithValue("@EndDate", endDate.Date);
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            customers.Add(MapCustomerFromReader(reader));
+                        }
+                    }
+                }
+            }
+
+            return customers;
+        }
+
+        public int GetCustomerInvoiceCount(int customerId)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = "SELECT COUNT(*) FROM Invoices WHERE CustomerID = @CustomerID";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@CustomerID", customerId);
+                    var result = command.ExecuteScalar();
+                    return Convert.ToInt32(result ?? 0);
+                }
+            }
+        }
+
+        public int GetCustomerShipmentCount(int customerId)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = "SELECT COUNT(*) FROM Shipments WHERE CustomerID = @CustomerID";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@CustomerID", customerId);
+                    var result = command.ExecuteScalar();
+                    return Convert.ToInt32(result ?? 0);
+                }
+            }
+        }
+
+        public decimal GetCustomerTotalSpent(int customerId)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT COALESCE(SUM(TotalAmount), 0) 
+                    FROM Invoices 
+                    WHERE CustomerID = @CustomerID 
+                    AND Status = 'Paid'";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@CustomerID", customerId);
+                    var result = command.ExecuteScalar();
+                    return Convert.ToDecimal(result ?? 0);
+                }
+            }
+        }
+
+        public bool CustomerExists(string name, string email)
+        {
+            using (var connection = DatabaseContext.GetConnection())
+            {
+                var query = @"
+                    SELECT EXISTS (
+                        SELECT 1 
+                        FROM Customers 
+                        WHERE Name = @Name 
+                        OR (Email = @Email AND Email IS NOT NULL AND Email != '')
+                    )";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Name", name);
+                    command.Parameters.AddWithValue("@Email", email ?? string.Empty);
+
+                    return Convert.ToBoolean(command.ExecuteScalar());
+                }
+            }
         }
     }
 }

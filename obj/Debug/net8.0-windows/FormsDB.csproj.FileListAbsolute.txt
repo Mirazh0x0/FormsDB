@@ -29,3 +29,4 @@ C:\Users\Пользователь\OneDrive\Документы\GitHub\FormsDB\obj
 C:\Users\Пользователь\OneDrive\Документы\GitHub\FormsDB\obj\Debug\net8.0-windows\FormsDB.pdb
 C:\Users\Пользователь\OneDrive\Документы\GitHub\FormsDB\obj\Debug\net8.0-windows\FormsDB.genruntimeconfig.cache
 C:\Users\Пользователь\OneDrive\Документы\GitHub\FormsDB\obj\Debug\net8.0-windows\ref\FormsDB.dll
+C:\Users\Пользователь\OneDrive\Документы\GitHub\FormsDB\obj\Debug\net8.0-windows\FormsDB.sourcelink.json
